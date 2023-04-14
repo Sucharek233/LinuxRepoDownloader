@@ -1,7 +1,7 @@
 # LinuxRepoDownloader
 Download files from a linux repository
 
-CURL required for this program to work!
+**CURL required for this program to work!**
 
 ## Program walkthrough
 Hello, and welcome to this walkthrough. This is what it looks like:
