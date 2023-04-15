@@ -4,9 +4,11 @@
 #include "thread.h"
 #include "download.h"
 #include "progress.h"
+#include "options.h"
 #include <QMainWindow>
 #include <QListWidgetItem>
 #include <QMessageBox>
+#include <QInputDialog>
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
@@ -34,11 +36,13 @@ public slots:
 
     void stopDl();
 
-    void initPath();
+    void initInfo();
     void setPath(QString newPath);
+    void setOptions(QStringList options);
 
 private slots:
     void updateList(QStringList folders, QStringList files);
+    void getLatest(QStringList names, QStringList versions);
 
     void on_pushButton_Sort_clicked();
 
@@ -50,12 +54,15 @@ private slots:
 
     void on_pushButton_Path_clicked();
 
+    void on_pushButton_Options_clicked();
+
 private:
     Ui::MainWindow *ui;
 
     Thread thread;
     download dl;
     progress prog;
+    options opts;
 
     QString url = "http://archive.ubuntu.com/ubuntu/pool/";
 

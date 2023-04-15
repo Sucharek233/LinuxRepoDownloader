@@ -7,6 +7,9 @@ QStringList currFiles;
 
 QString configPath;
 
+bool latestOpt;
+bool debugOpt;
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -26,8 +29,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     QObject::connect(&prog,SIGNAL(stopDl()),SLOT(stopDl()), Qt::AutoConnection);
 
+    initInfo();
     update(url);
-    initPath();
 
     stylesheet = "QMessageBox QLabel {font-size: 18px;} QMessageBox QPushButton {font-size: 14px;}";
 }
@@ -46,28 +49,62 @@ void MainWindow::update(QString url)
     dl.getList();
 }
 
-void MainWindow::initPath()
+void MainWindow::initInfo()
 {
     configPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/";
     QDir checkFolder(configPath); if (!checkFolder.exists()) {checkFolder.mkdir(configPath);}
-    QFile config(configPath + "config.ini"); if (!config.exists()) {config.open(QIODevice::ReadWrite); config.close();}
+    QFile config(configPath + "config.ini");
+    if (!config.exists()) {
+        config.open(QIODevice::ReadWrite);
+        config.write("\n"
+                     "http://archive.ubuntu.com/ubuntu/pool/\n"
+                     "0\n"
+                     "0");
+        config.close();
+    }
 
     config.open(QIODevice::ReadOnly);
-    path = config.readLine();
+    path = config.readLine(); path = path.replace("\n", "");
+
+    QString repo = config.readLine(); repo = repo.replace("\n", "");
+    latestOpt = config.readLine().toInt();
+    debugOpt = config.readLine().toInt();
+    if (repo == "\n" || repo.isEmpty()) {repo = url;}
+    opts.set(QStringList() << repo << QString::number(latestOpt) << QString::number(debugOpt));
+
     config.close();
 
     dl.setPath(path);
+    url = repo;
+    dl.setUrl(repo);
 }
-
 void MainWindow::setPath(QString newPath)
 {
     QFile config(configPath + "config.ini");
     config.open(QIODevice::ReadWrite);
+
+    QString getOpts = config.readAll();
+    QStringList one = getOpts.split("\n");
+    QString toWrite = newPath + "/\n" + one.at(1) + "\n" + one.at(2) + "\n" + one.at(3);
+
     config.resize(0);
-    config.write(newPath.toUtf8() + "/");
+    config.write(toWrite.toUtf8());
     config.close();
 
-    initPath();
+    initInfo();
+}
+void MainWindow::setOptions(QStringList options)
+{
+    QFile config(configPath + "config.ini");
+    config.open(QIODevice::ReadWrite);
+    QString keepPath = path + "\n";
+    if (path.isEmpty()) {keepPath = "\n";}
+    QString toWrite = keepPath + options.join("\n");
+    config.resize(0);
+    config.write(toWrite.toUtf8());
+    config.close();
+
+    initInfo();
 }
 
 void MainWindow::function(QString func)
@@ -99,14 +136,62 @@ void MainWindow::updateList(QStringList files, QStringList folders)
     up->setText("Parent directory");
     ui->listWidget_List->addItem(up);
 
+    QString saveName;
+    QString saveVer;
+    QString stuff;
+    QString latest;
+
+    QStringList names;
+    QStringList versions;
     foreach (QString entry, files) {
         QListWidgetItem* item = new QListWidgetItem();
         QIcon icon; icon = QIcon(":/icons/file.png");
 
+        QString saveEntry = entry;
+        QString name = entry.mid(0, entry.indexOf("_"));
+        QString renName = entry.replace(name , "");
+        QString renUnderscore = renName.remove(0, 1);
+        QString version = renUnderscore.mid(0, renUnderscore.indexOf("_"));
+        version = version.replace(".deb", "");
+//        qDebug() << "\n";
+//        qDebug() << name;
+//        qDebug() << version;
+
+        if (saveName != name) {
+            stuff += "\n" + name + "\t";
+
+            if (!saveName.isEmpty()) {
+                latest += "latest " + saveName + " = " + saveVer + "\n";
+                names << saveName; versions << saveVer;
+            }
+        }
+        if (saveVer != version) {
+            stuff += version + "\t";
+        }
+        saveName = name;
+        saveVer = version;
+
         item->setIcon(icon);
-        item->setText(entry);
+        item->setText(saveEntry + " (version " + version + ")");
+        item->setToolTip(saveEntry);
         ui->listWidget_List->addItem(item);
-        currFiles << entry;
+
+        currFiles << saveEntry;
+    }
+    latest += "latest " + saveName + " = " + saveVer + "\n";
+    names << saveName; versions << saveVer;
+    if (latestOpt == true && !files.isEmpty()) {
+        getLatest(names, versions);
+    }
+    if (!currFiles.isEmpty() && debugOpt == true) {
+        QInputDialog debug;
+        debug.setOption(QInputDialog::UsePlainTextEditForTextInput);
+        debug.setWindowTitle("Debug");
+        debug.setLabelText("Debug info");
+        debug.setMinimumSize(400, 400);
+        debug.setTextValue(stuff + "\n\n\n\n" + latest);
+        debug.setStyleSheet(stylesheet);
+        debug.exec();
     }
 
     foreach (QString entry, folders) {
@@ -115,8 +200,43 @@ void MainWindow::updateList(QStringList files, QStringList folders)
 
         item->setIcon(icon);
         item->setText(entry);
+        item->setToolTip(entry);
         ui->listWidget_List->addItem(item);
     }
+}
+void MainWindow::getLatest(QStringList names, QStringList versions)
+{
+    QStringList latest;
+    int i = 0;
+    foreach(QString entry, currFiles) {
+        int stop = names.count();
+        if (i == stop) {break;}
+
+        QString name = names.at(i);
+        QString version = versions.at(i);
+
+        if (entry.contains(name) && entry.contains(version)) {
+            i += 1;
+            latest << entry;
+        }
+    }
+
+    ui->listWidget_List->clear();
+    QListWidgetItem* up = new QListWidgetItem();
+    QIcon icon; icon = QIcon(":/icons/folder.png");
+    up->setIcon(icon);
+    up->setText("Parent directory");
+    ui->listWidget_List->addItem(up);
+
+    foreach(QString entry, latest) {
+        QListWidgetItem* item = new QListWidgetItem();
+        icon = QIcon(":/icons/file.png");
+        item->setIcon(icon);
+        item->setText(entry);
+        item->setToolTip(entry);
+        ui->listWidget_List->addItem(item);
+    }
+    currFiles = latest;
 }
 
 void MainWindow::on_pushButton_Sort_clicked()
@@ -128,12 +248,12 @@ void MainWindow::on_pushButton_Sort_clicked()
 
 void MainWindow::on_listWidget_List_itemDoubleClicked(QListWidgetItem *item)
 {
-    QString curr = item->text();
+    QString curr = item->toolTip();
     if (ui->listWidget_List->currentRow() == 0) {
-        if (url == "http://archive.ubuntu.com/") {return;}
         QStringList prepare = url.split("/"); prepare.removeAll("");
         QString remove = prepare.last();
-        url = url.left(url.count() - remove.count() - 1);
+        QString check = url.left(url.count() - remove.count() - 1);
+        if (check == "http://" || check == "https://") {return;} else {url = check;}
 
         update(url);
         return;
@@ -234,7 +354,6 @@ void MainWindow::on_pushButton_Progress_clicked()
     prog.exec();
 }
 
-
 void MainWindow::on_pushButton_Path_clicked()
 {
     QFileDialog getPath;
@@ -253,5 +372,16 @@ void MainWindow::on_pushButton_Path_clicked()
                     "Your option will be saved.\n"
                     "To change it, click on Set download path.");
         sel.exec();
+    }
+}
+
+void MainWindow::on_pushButton_Options_clicked()
+{
+    QStringList save = opts.get();
+    if (opts.exec() == QDialog::Accepted) {
+        setOptions(opts.get());
+        update(url);
+    } else {
+        opts.set(save);
     }
 }

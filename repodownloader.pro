@@ -12,17 +12,20 @@ SOURCES += \
     download.cpp \
     main.cpp \
     mainwindow.cpp \
+    options.cpp \
     progress.cpp \
     thread.cpp
 
 HEADERS += \
     download.h \
     mainwindow.h \
+    options.h \
     progress.h \
     thread.h
 
 FORMS += \
     mainwindow.ui \
+    options.ui \
     progress.ui
 
 # Default rules for deployment.
