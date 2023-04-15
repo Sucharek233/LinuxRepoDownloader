@@ -15,4 +15,9 @@ To download one file, double click on a file in a folder.
 If you want to download every singe file in a folder, you can by clicking on Download all.
 ![image](https://user-images.githubusercontent.com/31042508/232119382-a34be8eb-0277-4d23-9dff-e10fb003ce84.png)
 
+You can change some options.
+
+![image](https://user-images.githubusercontent.com/31042508/232253744-c4a5d8c2-24f1-46b8-8fab-3f43bbe78a7a.png)
+
+
 More features and repository options are coming soon.
