@@ -19,13 +19,15 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(&thread,SIGNAL(func(const QString&)),SLOT(function(const QString&)), Qt::AutoConnection);
     QObject::connect(&thread,SIGNAL(update(const QStringList&, const QStringList&)),SLOT(updateList(const QStringList&, const QStringList&)), Qt::AutoConnection);
 
-    QObject::connect(&dl,SIGNAL(updateOutput(const QString&)),SLOT(sendOutput(const QString&)), Qt::AutoConnection);
-    QObject::connect(&dl,SIGNAL(updateDlOutput(const QString&)),SLOT(sendDlOutput(const QString&)), Qt::AutoConnection);
-    QObject::connect(&dl,SIGNAL(updateState(const bool&)),SLOT(sendState(const bool&)), Qt::AutoConnection);
+    QObject::connect(&dl,SIGNAL(updateList(const QString&)),&thread,SLOT(receiveList(const QString&)), Qt::AutoConnection);
+    QObject::connect(&dl,SIGNAL(updateInfo(const QStringList&)),&thread,SLOT(receiveInfo(const QStringList&)), Qt::AutoConnection);
+    QObject::connect(&dl,SIGNAL(updateState(const bool&)),&thread,SLOT(receiveState(const bool&)), Qt::AutoConnection);
+    QObject::connect(&dl,SIGNAL(sendError(const QString&)),&thread,SLOT(receiveError(const QString&)), Qt::AutoConnection);
 
     QObject::connect(&thread,SIGNAL(updateProgress(const QStringList&)),&prog,SLOT(unpack(const QStringList&)), Qt::AutoConnection);
 
-    QObject::connect(&thread,SIGNAL(sendFile(const QString&)),&dl,SLOT(startDownload(const QString&)), Qt::AutoConnection);
+    QObject::connect(&thread,SIGNAL(sendFile(const QString&)),SLOT(threadDl(const QString&)), Qt::AutoConnection);
+    QObject::connect(&thread,SIGNAL(showError(const QStringList&)),SLOT(error(const QStringList&)), Qt::AutoConnection);
 
     QObject::connect(&prog,SIGNAL(stopDl()),SLOT(stopDl()), Qt::AutoConnection);
 
@@ -46,7 +48,7 @@ void MainWindow::update(QString url)
 
     thread.setFunction("updateList");
     thread.start();
-    dl.getList();
+    dl.setState("list"); dl.setFilename("list"); dl.startDl();
 }
 
 void MainWindow::initInfo()
@@ -243,7 +245,6 @@ void MainWindow::on_pushButton_Sort_clicked()
 {
     thread.setFunction("updateList");
     thread.start();
-    dl.getList();
 }
 
 void MainWindow::on_listWidget_List_itemDoubleClicked(QListWidgetItem *item)
@@ -282,13 +283,14 @@ void MainWindow::on_listWidget_List_itemDoubleClicked(QListWidgetItem *item)
 
         QStringList get = url.split("/"); get.removeAll("");
         QString folder = get.last();
+        dl.setState("dl");
         dl.setPath(path + folder + "/");
         QDir create; create.mkdir(path + folder);
 
         thread.setFunction("dlOne");
         thread.start();
         thread.sendInfo(curr);
-        dl.startDownload(curr);
+        threadDl(curr);
         prog.exec();
     } else {
         url += curr + "/";
@@ -336,16 +338,39 @@ void MainWindow::on_pushButton_Download_clicked()
     QDir create; create.mkdir(path + folder);
 
     dl.setUrl(url);
+    dl.setState("dl");
     thread.setFunction("dlList");
     thread.receiveFiles(currFiles);
     thread.start();
     prog.exec();
 }
 
+void MainWindow::threadDl(QString file)
+{
+    dl.setState("dl");
+    dl.setUrl(url + file);
+    dl.setFilename(file);
+    dl.startDl();
+}
+
+void MainWindow::error(QStringList err)
+{
+    QInputDialog error;
+    error.setOption(QInputDialog::UsePlainTextEditForTextInput);
+    error.setWindowTitle("Error");
+    error.setLabelText(err.at(0));
+    error.resize(630, 400);
+    error.setTextValue(err.at(1));
+    error.setStyleSheet("QInputDialog QLabel { font-size: 14pt; } "
+                        "QInputDialog QPlainTextEdit { font-size: 12pt; } "
+                        "QInputDialog QPushButton { font-size: 10pt; } ");
+    error.exec();
+}
+
 void MainWindow::stopDl()
 {
     thread.terminate();
-    dl.stop();
+//    dl.stop();
     prog.unpack(QStringList() << "Download canceled" << "100" << "Download canceled" << "100");
 }
 

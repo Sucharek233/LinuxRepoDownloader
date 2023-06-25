@@ -16,9 +16,9 @@ progress::~progress()
 void progress::unpack(QStringList data)
 {
     currLabel(data.at(0));
-    currPercentage(data.at(1).toInt());
+    currPercentage(data.at(1).toDouble());
     overallLabel(data.at(2));
-    overallPercentage(data.at(3).toInt());
+    overallPercentage(data.at(3).toDouble());
 }
 
 void progress::currLabel(QString text)

@@ -12,24 +12,25 @@ class Thread : public QThread
 public:
     void setFunction(QString func) {function = func;}
 
-    void receiveOut(QString out) {output = out;}
-    void receiveDlOut(QString out) {dlOutput = out;}
-    void receiveState(bool stat) {state = stat;}
-
     void receiveFiles(QStringList dlFiles) {files = dlFiles;}
 
-    void sendInfo(QString info) {dlInfo = info;}
+    void sendInfo(QString info) {fileName = info;}
 
     QStringList stripFiles(QString input);
     QStringList stripFolders(QString input);
 
     QString getPercentage(QString input);
 
+    QString getSizes();
+
 public slots:
-    void stopRunning();
+    void receiveList(QString out) {output = out;}
+    void receiveState(bool stat) {state = stat;}
+    void receiveInfo(QStringList inf) {info = inf;}
+    void receiveError(QString error) {err = error;}
 
 protected:
-   virtual void run();
+   virtual void run() override;
 
 signals:
    void update(QStringList, QStringList);
@@ -39,16 +40,17 @@ signals:
 
    void sendFile(QString);
 
-private:
-    bool isRunning;
+   void showError(QStringList);
 
+private:
     QString function;
 
     bool state;
 
     QString output;
-    QString dlOutput;
-    QString dlInfo;
+    QStringList info;
+    QString fileName;
+    QString err;
 
     QStringList files;
 };

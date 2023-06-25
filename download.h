@@ -1,43 +1,51 @@
-#ifndef DOWNLOAD_H
-#define DOWNLOAD_H
+#ifndef DOWNLOADER_H
+#define DOWNLOADER_H
 
 #include <QObject>
-#include <QProcess>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrl>
+#include <QFile>
 #include <QDebug>
+#include <QElapsedTimer>
+#include <QFileInfo>
 
 class download : public QObject
 {
     Q_OBJECT
 public:
-    download();
-
-    void getList();
+    explicit download(QObject *parent = 0);
 
     void setUrl(QString ur) {url = ur;}
     void setPath(QString pat) {path = pat;}
+    void setFilename(QString name) {filename = name;}
 
-    void stop() {process.terminate();}
-
-public slots:
-    void start();
-
-    void stop(int, QProcess::ExitStatus);
-
-    void getOutput();
-    void getDlOutput();
-
-    void startDownload(QString file);
+    void setState(QString stat) {state = stat;}
 
 signals:
-    void updateOutput(QString);
-    void updateDlOutput(QString);
+    void updateList(QString);
     void updateState(bool);
+    void updateInfo(QStringList);
+
+    void sendError(QString);
+
+public slots:
+    void startDl();
+    void onResult(QNetworkReply *reply);
+    void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
+    void saveToFile();
 
 private:
-    QProcess process;
+    QNetworkAccessManager *manager;
+    QNetworkReply *reply;
 
     QString url = "http://archive.ubuntu.com/ubuntu/pool/";
     QString path;
+    QString filename;
+    QString state;
+
+    QString list;
 };
 
-#endif // DOWNLOAD_H
+#endif // DOWNLOADER_H

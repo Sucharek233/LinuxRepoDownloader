@@ -2,6 +2,7 @@
 #define PROGRESS_H
 
 #include <QDialog>
+#include <QDebug>
 
 namespace Ui {
 class progress;

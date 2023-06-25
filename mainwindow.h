@@ -30,15 +30,15 @@ public slots:
     void update(QString url);
     void function(QString func);
 
-    void sendOutput(QString out) {thread.receiveOut(out);}
-    void sendDlOutput(QString out) {thread.receiveDlOut(out);}
-    void sendState(bool state) {thread.receiveState(state);}
-
     void stopDl();
 
     void initInfo();
     void setPath(QString newPath);
     void setOptions(QStringList options);
+
+    void threadDl(QString file);
+
+    void error(QStringList err);
 
 private slots:
     void updateList(QStringList folders, QStringList files);

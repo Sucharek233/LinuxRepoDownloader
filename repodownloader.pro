@@ -1,4 +1,5 @@
-QT       += core gui
+QT       += core gui network
+LIBS += -LC:\Qt\Tools\OpenSSL\Win_x64\bin
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 

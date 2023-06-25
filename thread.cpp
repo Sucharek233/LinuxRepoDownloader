@@ -11,6 +11,7 @@ QStringList Thread::stripFiles(QString input)
         if (skip == 0) {
             QString first = entry.mid(0, entry.indexOf(".deb"));
             first += ".deb";
+            qDebug() << first;
             QString second = first.replace("<tr><td valign=\"top\"><img src=\"/icons/unknown.gif\" alt=\"[   ]\"></td><td><a href=\"", "");
             fileList << second;
         }
@@ -39,17 +40,16 @@ QStringList Thread::stripFolders(QString input)
     return dirList;
 }
 
-QString Thread::getPercentage(QString input)
+QString Thread::getSizes()
 {
-    input = input.replace("\r  ", "");
-    input = input.replace("\r ", "");
-    input = input.replace("\r", "");
-    QString percentage = input.left(3);
-    return percentage.simplified();
+    QString currSize = QString::number(int(info.at(1).toInt() / 1000));
+    QString totalSize = QString::number(int(info.at(2).toInt() / 1000));
+    QString size = " (" + currSize + "KB/" + totalSize + "KB)";
+    return size;
 }
 
 void Thread::run()
-{ isRunning = 1; while(isRunning == 1) {
+{
     if (function == "updateList") {
         emit func("updating");
         while(true) {
@@ -65,19 +65,30 @@ void Thread::run()
         emit func("download");
         while(true) {
             msleep(100);
-            qDebug() << getPercentage(dlOutput) + "%";
+            QString percentage = info.at(0);
             QStringList data;
-            data << "Downloading " + dlInfo + "..." << getPercentage(dlOutput) << "Overall progress (0/1)" << getPercentage(dlOutput);
+            data << "Downloading " + fileName + getSizes() + "..." << percentage << "Overall progress (0/1)" << percentage;
             updateProgress(data);
             if (state == false) {break;}
         }
-        QStringList data; data << "Downloaded " + dlInfo << "100" << "Overall progress (1/1)" << "100";
+        QStringList data; data << "Downloaded " + fileName + getSizes() << "100" << "Overall progress (1/1)" << "100";
         updateProgress(data);
+        if (!err.isEmpty()) {
+            QStringList fail;
+            fail << "Error while downloading these following packages:\n" + fileName <<
+                    "Detailed info\n\n" + fileName + ":\n" + err;
+            showError(fail);
+        }
     } else if (function == "dlList") {
         emit func("download");
         float quantity = files.count(); QString quantityStr = QString::number(int(quantity));
         int current = -1;
         float percentageAdd = 100 / quantity;
+        double totalKB = 0;
+
+        err.clear();
+        QStringList packages;
+        QStringList errors;
         foreach(QString file, files) {
             sendFile(file);
             current += 1;
@@ -85,21 +96,39 @@ void Thread::run()
             qDebug() << percentageAdd << "*" << current << "=" << percentageAdd * current;
             while(true) {
                 msleep(100);
-                QString percentage = getPercentage(dlOutput);
+                QString percentage = info.at(0);
                 int overallPercentage = percentage.toInt() / quantity + modifier;
-                QStringList data; data << "Downloading " + file + "..." << percentage <<
-                                          "Overall progress (" + QString::number(current) + "/" + quantityStr + ")" << QString::number(overallPercentage);
+                QStringList data; data << "Downloading " + file + getSizes() + "..." << percentage <<
+                                          "Overall progress (" + QString::number(current) + "/" + quantityStr + ") (Total downloaded: " +
+                                          QString::number(int(totalKB)) + " KB)" << QString::number(overallPercentage);
                 updateProgress(data);
                 if (state == false) {break;}
             }
+            totalKB += info.at(2).toInt() / 1000;
+
+            if (!err.isEmpty()) {
+                packages << file;
+                errors << err;
+            }
+            err.clear();
         }
-        QStringList data; data << "Downloaded" << "100" << "Overall progress (" + quantityStr + "/" + quantityStr + ")" << "100";
+        if (!packages.isEmpty() && !errors.isEmpty()) {
+            QString header = "Error while downloading these following packages:";
+            QString details = "Detailed info:";
+            int i = 0;
+            foreach(QString package, packages) {
+                header += "\n" + package;
+                QString currErr = errors.at(i);
+                details += "\n\n" + package + ":\n" + currErr;
+                i += 1;
+            }
+            QStringList final;
+            final << header << details;
+            showError(final);
+        }
+
+        QStringList data; data << "Downloaded" << "100" << "Overall progress (" + quantityStr + "/" + quantityStr + ") (Total downloaded: " +
+                                  QString::number(int(totalKB)) + " KB)" << "100";
         updateProgress(data);
     }
-    stopRunning();
-}}
-
-void Thread::stopRunning()
-{
-    isRunning = 0;
 }
